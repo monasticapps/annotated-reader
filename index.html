@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Annotated Reader</title>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@latest/fonts.css');
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Computer Modern Serif", Georgia, serif;
+            font-size: 20px;
+            line-height: 1.7;
+            color: #1a1a1a;
+            background: #fafafa;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 680px;
+            margin: 0;
+            margin-left: 60px;
+            padding: 60px 24px;
+        }
+
+        /* Drop zone */
+        .drop-zone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            border: 3px dashed #ccc;
+            border-radius: 12px;
+            margin: 40px;
+            padding: 60px;
+            text-align: center;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .drop-zone.dragover {
+            border-color: #888;
+            background: #f0f0f0;
+        }
+
+        .drop-zone h1 {
+            margin: 0 0 16px 0;
+            font-size: 1.6em;
+            color: #333;
+        }
+
+        .drop-zone p {
+            margin: 0;
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .drop-zone .instructions {
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #888;
+            max-width: 400px;
+        }
+
+        /* Content area (hidden until folder loaded) */
+        .content {
+            display: none;
+        }
+
+        .content.visible {
+            display: block;
+        }
+
+        #header-area .chapter-number {
+            text-align: center;
+            font-size: 1.1em;
+            letter-spacing: 0.15em;
+            margin-bottom: 0.5em;
+            color: #333;
+        }
+
+        .chapter-title {
+            text-align: center;
+            font-size: 1.8em;
+            letter-spacing: 0.2em;
+            margin-bottom: 2em;
+            color: #1a1a1a;
+            cursor: pointer;
+        }
+
+        .chapter-number {
+            cursor: pointer;
+        }
+
+        .separator {
+            text-align: center;
+            margin: 2em 0;
+            letter-spacing: 0.5em;
+            color: #666;
+        }
+
+        .main-content p {
+            text-align: justify;
+            margin-bottom: 1.5em;
+            text-indent: 1.5em;
+        }
+
+        .main-content p:first-of-type {
+            text-indent: 0;
+        }
+
+        mark {
+            background-color: #ecf2fb;
+            color: inherit;
+            padding: 0.05em 0.15em;
+            border-radius: 0.15em;
+        }
+
+        .linked-term {
+            color: #1a1a1a;
+            background: linear-gradient(to bottom, transparent 60%, rgba(200, 180, 120, 0.3) 60%);
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s ease;
+        }
+
+        .linked-term:hover {
+            background: linear-gradient(to bottom, transparent 40%, rgba(200, 180, 120, 0.5) 40%);
+        }
+
+        .linked-term.active {
+            background: linear-gradient(to bottom, transparent 60%, rgba(160, 140, 80, 0.6) 60%);
+            text-decoration: underline;
+            text-decoration-color: rgba(120, 100, 50, 0.8);
+            text-underline-offset: 2px;
+        }
+
+        /* Sidebar styles */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 400px;
+            height: 100vh;
+            background: #f5f3ed;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+            z-index: 1000;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .sidebar.visible {
+            display: block;
+        }
+
+        .sidebar-header {
+            position: sticky;
+            top: 0;
+            background: #e8e4d9;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .sidebar-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #1a1a1a;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .sidebar-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #1a1a1a;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .sidebar-close:hover {
+            color: #666;
+        }
+
+        .sidebar-content {
+            padding: 20px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .sidebar-content h1 {
+            font-size: 18px;
+            margin: 0 0 12px 0;
+            color: #1a1a1a;
+        }
+
+        .sidebar-content p {
+            text-indent: 0;
+            text-align: left;
+            margin-bottom: 0.8em;
+        }
+
+        .sidebar-content ul, .sidebar-content ol {
+            margin: 0.5em 0 1em 1.5em;
+            padding: 0;
+        }
+
+        .sidebar-content li {
+            margin-bottom: 0.3em;
+        }
+
+        .sidebar-content img {
+            max-width: 100%;
+            height: auto;
+            margin: 16px 0;
+            border-radius: 4px;
+        }
+
+        /* Overlay - disabled, allowing clicks through */
+        .overlay {
+            display: none;
+        }
+
+        /* Folder button */
+        .folder-btn {
+            background: #1a1a1a;
+            color: #fff;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 1.1em;
+            margin: 20px 0;
+            transition: background 0.2s;
+        }
+
+        .folder-btn:hover {
+            background: #333;
+        }
+
+        /* Reset button */
+        .reset-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: #e8e4d9;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.9em;
+            color: #333;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .reset-btn.visible {
+            display: block;
+        }
+
+        .reset-btn:hover {
+            background: #ddd9ce;
+        }
+
+        @media (max-width: 500px) {
+            .sidebar {
+                width: 100%;
+                right: -100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="overlay"></div>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">Annotation</span>
+            <button class="sidebar-close" onclick="closeSidebar()">&times;</button>
+        </div>
+        <div class="sidebar-content" id="sidebar-content">
+        </div>
+    </div>
+
+    <button class="reset-btn" onclick="resetViewer()">← Load Different Folder</button>
+
+    <div class="drop-zone" id="drop-zone">
+        <h1>Annotated Reader</h1>
+        <p>Choose a folder containing <strong>main.md</strong></p>
+        <button class="folder-btn" id="folder-btn">Select Folder</button>
+        <div class="instructions">
+            The folder should contain a <code>main.md</code> file with <code>[[linked terms]]</code>,
+            and separate <code>.md</code> files for each annotation (e.g., <code>term.md</code>).
+            Images referenced in notes will be loaded automatically.
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="content" id="content">
+            <div id="header-area"></div>
+            <div class="main-content" id="main-content"></div>
+        </div>
+    </div>
+
+    <script>
+        let notes = {};
+        let imageFiles = {};
+        let currentActive = null;
+
+        const dropZone = document.getElementById('drop-zone');
+        const content = document.getElementById('content');
+        const mainContent = document.getElementById('main-content');
+        const headerArea = document.getElementById('header-area');
+        const resetBtn = document.querySelector('.reset-btn');
+        const folderBtn = document.getElementById('folder-btn');
+
+        // Folder picker button
+        folderBtn.addEventListener('click', async () => {
+            try {
+                const dirHandle = await window.showDirectoryPicker();
+                const files = await readDirectoryHandle(dirHandle);
+                console.log('Files found:', files.map(f => f.name));
+                await processFiles(files);
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('Error:', err);
+                    alert('Error reading folder: ' + err.message);
+                }
+            }
+        });
+
+        async function readDirectoryHandle(dirHandle, path = '') {
+            const files = [];
+            for await (const entry of dirHandle.values()) {
+                if (entry.kind === 'file') {
+                    const file = await entry.getFile();
+                    file.relativePath = path + file.name;
+                    files.push(file);
+                } else if (entry.kind === 'directory') {
+                    const subFiles = await readDirectoryHandle(entry, path + entry.name + '/');
+                    files.push(...subFiles);
+                }
+            }
+            return files;
+        }
+
+        async function processFiles(files) {
+            // Find main.md
+            const mainFile = files.find(f => f.name.toLowerCase() === 'main.md');
+            if (!mainFile) {
+                alert('No main.md found. Please drop a folder containing main.md');
+                return;
+            }
+
+            // Store image files for later reference
+            imageFiles = {};
+            for (const file of files) {
+                if (file.name.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i)) {
+                    imageFiles[file.name] = file;
+                }
+            }
+
+            // Read main.md
+            const mainMd = await readFileAsText(mainFile);
+
+            // Extract [[linked terms]] from main.md
+            const linkedTerms = [...mainMd.matchAll(/\[\[([^\]]+)\]\]/g)].map(m => m[1]);
+
+            // Load note files
+            notes = {};
+            for (const term of linkedTerms) {
+                // Try different filename patterns
+                const possibleNames = [
+                    term + '.md',
+                    term.replace(/ /g, '-') + '.md',
+                    '_' + term + '_.md',
+                    term.toLowerCase() + '.md'
+                ];
+
+                for (const name of possibleNames) {
+                    const noteFile = files.find(f => f.name === name || f.name.toLowerCase() === name.toLowerCase());
+                    if (noteFile) {
+                        const noteContent = await readFileAsText(noteFile);
+                        notes[term] = parseNoteContent(noteContent, term);
+                        break;
+                    }
+                }
+            }
+
+            // Parse and display main content
+            displayContent(mainMd);
+
+            // Show content, hide drop zone, show sidebar
+            dropZone.style.display = 'none';
+            content.classList.add('visible');
+            resetBtn.classList.add('visible');
+            document.querySelector('.sidebar').classList.add('visible');
+            clearSidebar();
+        }
+
+        function readFileAsText(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.readAsText(file);
+            });
+        }
+
+        function parseNoteContent(md, term) {
+            // Remove the # title line if it matches the term
+            let content = md.replace(/^#\s+.*\n+/, '');
+
+            // Convert markdown to HTML
+            content = markdownToHtml(content, term);
+
+            return {
+                title: term,
+                content: content
+            };
+        }
+
+        function markdownToHtml(md, noteName) {
+            let html = md;
+
+            // Handle images - convert to object URLs
+            html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, src) => {
+                // Store image reference to be resolved later
+                return `<img data-src="${src}" alt="${alt}" class="note-image">`;
+            });
+
+            // Bold
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+            // Italic
+            html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+
+            // Unordered lists
+            html = html.replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>');
+            html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+            // Ordered lists
+            html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+
+            // Line breaks to paragraphs
+            const paragraphs = html.split(/\n\n+/);
+            html = paragraphs.map(p => {
+                p = p.trim();
+                if (!p) return '';
+                if (p.startsWith('<ul>') || p.startsWith('<ol>') || p.startsWith('<li>') || p.startsWith('<img')) {
+                    return p;
+                }
+                return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
+            }).join('\n');
+
+            return html;
+        }
+
+        function displayContent(md) {
+            // Remove style block if present
+            md = md.replace(/<style>[\s\S]*?<\/style>\s*/i, '');
+
+            // Extract chapter number and title (first two non-empty lines)
+            const lines = md.trim().split('\n');
+            let headerHtml = '';
+            let contentStart = 0;
+
+            // Look for chapter pattern
+            for (let i = 0; i < Math.min(lines.length, 5); i++) {
+                const line = lines[i].trim();
+                if (line.match(/^CHAPTER\s+[IVXLCDM\d]+\.?$/i)) {
+                    headerHtml += `<div class="chapter-number">${line}</div>`;
+                    contentStart = i + 1;
+                } else if (line.match(/^[A-Z][A-Z\s]+\.?$/) && headerHtml) {
+                    headerHtml += `<div class="chapter-title">${line}</div>`;
+                    contentStart = i + 1;
+                    break;
+                }
+            }
+
+            headerArea.innerHTML = headerHtml;
+
+            // Process rest of content
+            let content = lines.slice(contentStart).join('\n');
+
+            // Replace [[term]] with clickable spans
+            content = content.replace(/\[\[([^\]]+)\]\]/g, (match, term) => {
+                return `<span class="linked-term" data-note="${term}">${term}</span>`;
+            });
+
+            // Handle separators
+            content = content.replace(/\*\s+\*\s+\*\s+\*\s+\*/g,
+                '<div class="separator">*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*</div>');
+
+            // Convert _text_ to <em> (for italics)
+            content = content.replace(/_([^_]+)_/g, '<em>$1</em>');
+
+            // Split into paragraphs (by blank lines, excluding separators)
+            const parts = content.split(/\n\n+/);
+            let html = '';
+
+            for (const part of parts) {
+                const trimmed = part.trim();
+                if (!trimmed) continue;
+
+                if (trimmed.startsWith('<div class="separator">')) {
+                    html += trimmed;
+                } else {
+                    html += '<p>' + trimmed.replace(/\n/g, ' ') + '</p>';
+                }
+            }
+
+            mainContent.innerHTML = html;
+
+            // Attach click handlers
+            document.querySelectorAll('.linked-term').forEach(term => {
+                term.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    openSidebar(this.dataset.note);
+                });
+            });
+
+            // Attach click handler to chapter title/number to clear sidebar
+            headerArea.addEventListener('click', function() {
+                clearSidebar();
+            });
+        }
+
+        async function openSidebar(noteKey) {
+            const note = notes[noteKey];
+            if (!note) {
+                document.getElementById('sidebar-content').innerHTML =
+                    '<h1>' + noteKey + '</h1><p><em>No annotation found for this term.</em></p>';
+            } else {
+                document.getElementById('sidebar-content').innerHTML =
+                    '<h1>' + note.title + '</h1>' + note.content;
+
+                // Resolve image sources
+                const images = document.querySelectorAll('#sidebar-content img[data-src]');
+                for (const img of images) {
+                    const src = img.dataset.src;
+                    const imageFile = imageFiles[src];
+                    if (imageFile) {
+                        img.src = URL.createObjectURL(imageFile);
+                    }
+                }
+            }
+
+            if (currentActive) {
+                currentActive.classList.remove('active');
+            }
+            // Find all matching terms and mark them active
+            const allMatching = document.querySelectorAll('.linked-term[data-note="' + noteKey + '"]');
+            if (allMatching.length > 0) {
+                allMatching[0].classList.add('active');
+                currentActive = allMatching[0];
+            }
+        }
+
+        function clearSidebar() {
+            document.getElementById('sidebar-content').innerHTML = '';
+
+            if (currentActive) {
+                currentActive.classList.remove('active');
+                currentActive = null;
+            }
+        }
+
+        function resetViewer() {
+            clearSidebar();
+            document.querySelector('.sidebar').classList.remove('visible');
+            dropZone.style.display = 'flex';
+            content.classList.remove('visible');
+            resetBtn.classList.remove('visible');
+            mainContent.innerHTML = '';
+            headerArea.innerHTML = '';
+            notes = {};
+            imageFiles = {};
+        }
+
+        // Clear sidebar on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                clearSidebar();
+            }
+        });
+
+        // Clear sidebar when clicking on non-linked text in main content
+        mainContent.addEventListener('click', function(e) {
+            if (!e.target.classList.contains('linked-term')) {
+                clearSidebar();
+            }
+        });
+    </script>
+</body>
+</html>
