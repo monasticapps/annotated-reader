@@ -23,9 +23,14 @@
 
         .container {
             max-width: 680px;
+            margin: 0 auto;
+            padding: 60px 24px;
+            transition: margin 0.2s ease;
+        }
+
+        body.sidebar-open .container {
             margin: 0;
             margin-left: 60px;
-            padding: 60px 24px;
         }
 
         /* Drop zone */
@@ -251,7 +256,7 @@
 
         /* Reset button */
         .reset-btn {
-            position: fixed;
+            position: absolute;
             top: 20px;
             left: 20px;
             background: #e8e4d9;
@@ -288,7 +293,7 @@
     <div class="sidebar">
         <div class="sidebar-header">
             <span class="sidebar-title">Annotation</span>
-            <button class="sidebar-close" onclick="closeSidebar()">&times;</button>
+            <button class="sidebar-close" onclick="hideSidebar()">&times;</button>
         </div>
         <div class="sidebar-content" id="sidebar-content">
         </div>
@@ -402,12 +407,10 @@
             // Parse and display main content
             displayContent(mainMd);
 
-            // Show content, hide drop zone, show sidebar
+            // Show content, hide drop zone (sidebar stays hidden by default)
             dropZone.style.display = 'none';
             content.classList.add('visible');
             resetBtn.classList.add('visible');
-            document.querySelector('.sidebar').classList.add('visible');
-            clearSidebar();
         }
 
         function readFileAsText(file) {
@@ -532,10 +535,6 @@
                 });
             });
 
-            // Attach click handler to chapter title/number to clear sidebar
-            headerArea.addEventListener('click', function() {
-                clearSidebar();
-            });
         }
 
         async function openSidebar(noteKey) {
@@ -558,6 +557,10 @@
                 }
             }
 
+            // Show sidebar
+            document.querySelector('.sidebar').classList.add('visible');
+            document.body.classList.add('sidebar-open');
+
             if (currentActive) {
                 currentActive.classList.remove('active');
             }
@@ -578,9 +581,14 @@
             }
         }
 
-        function resetViewer() {
-            clearSidebar();
+        function hideSidebar() {
             document.querySelector('.sidebar').classList.remove('visible');
+            document.body.classList.remove('sidebar-open');
+            clearSidebar();
+        }
+
+        function resetViewer() {
+            hideSidebar();
             dropZone.style.display = 'flex';
             content.classList.remove('visible');
             resetBtn.classList.remove('visible');
@@ -590,18 +598,23 @@
             imageFiles = {};
         }
 
-        // Clear sidebar on escape key
+        // Hide sidebar on escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
-                clearSidebar();
+                hideSidebar();
             }
         });
 
-        // Clear sidebar when clicking on non-linked text in main content
+        // Hide sidebar when clicking on non-linked text in main content
         mainContent.addEventListener('click', function(e) {
             if (!e.target.classList.contains('linked-term')) {
-                clearSidebar();
+                hideSidebar();
             }
+        });
+
+        // Hide sidebar when clicking on chapter title/number
+        headerArea.addEventListener('click', function() {
+            hideSidebar();
         });
     </script>
 </body>
