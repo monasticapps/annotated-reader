@@ -163,9 +163,14 @@
             display: block;
         }
 
+        .sidebar-avatar-space {
+            height: 250px;
+            background: #f5f3ed;
+        }
+
         .sidebar-header {
             position: sticky;
-            top: 0;
+            top: 250px;
             background: #e8e4d9;
             padding: 12px 20px;
             display: flex;
@@ -291,6 +296,7 @@
     <div class="overlay"></div>
 
     <div class="sidebar">
+        <div class="sidebar-avatar-space"></div>
         <div class="sidebar-header">
             <span class="sidebar-title">Annotation</span>
             <button class="sidebar-close" onclick="hideSidebar()">&times;</button>
